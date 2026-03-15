@@ -1,42 +1,57 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import text
 
 from app.db.session import get_db
+from app.core.deps import require_roles
 from app.schemas.auth import LoginIn, LoginOut
-from app.core.security import verify_password, create_access_token
-from app.core.config import JWT_SECRET, JWT_ALG, ACCESS_TOKEN_EXPIRE
+from app.schemas.users import UserCreateIn, UserUpdateIn
+
+from app.services.auth_service import AuthService
+from app.services.users_service import UsersService
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+def get_auth_service(db: Session = Depends(get_db)):
+    return AuthService(db)
+
+def get_users_service(db: Session = Depends(get_db)):
+    return UsersService(db)
+
+
+# ---------------- LOGIN ----------------
 @router.post("/login", response_model=LoginOut)
-def login(payload: LoginIn, db: Session = Depends(get_db)):
-    q = text("SELECT * FROM fn_auth_get_user_by_email(:em)")
-    row = db.execute(q, {"em": str(payload.email)}).mappings().first()
+def login(payload: LoginIn, svc: AuthService = Depends(get_auth_service)):
+    return svc.login(payload.email, payload.password)
 
-    if not row or not verify_password(payload.password, row["password_hash"]):
-        raise HTTPException(status_code=401, detail="Credenciales inválidas")
 
-    token = create_access_token(
-        payload={
-            "sub": row["id"],
-            "email": row["email"],
-            "rol": row["rol"],
-            "area": row.get("area"),
-            "nombre": row["nombre"],
-        },
-        secret=JWT_SECRET,
-        alg=JWT_ALG,
-        expires_delta=ACCESS_TOKEN_EXPIRE,
-    )
+# ---------------- USERS ----------------
+@router.post("/users", dependencies=[Depends(require_roles("ADMIN"))])
+def create_user(
+    payload: UserCreateIn,
+    svc: UsersService = Depends(get_users_service),
+):
+    return svc.create_user(payload)
 
-    return {
-        "access_token": token,
-        "user": {
-            "id": row["id"],
-            "email": row["email"],
-            "rol": row["rol"],
-            "area": row.get("area"),
-            "nombre": row["nombre"],
-        },
-    }
+
+@router.get("/users", dependencies=[Depends(require_roles("ADMIN"))])
+def list_users(
+    svc: UsersService = Depends(get_users_service),
+):
+    return svc.list_users()
+
+
+@router.patch("/users/{user_id}", dependencies=[Depends(require_roles("ADMIN"))])
+def update_user(
+    user_id: str,
+    payload: UserUpdateIn,
+    svc: UsersService = Depends(get_users_service),
+):
+    return svc.update_user(user_id, payload)
+
+
+@router.delete("/users/{user_id}", dependencies=[Depends(require_roles("ADMIN"))])
+def delete_user(
+    user_id: str,
+    svc: UsersService = Depends(get_users_service),
+):
+    return svc.delete_user(user_id)

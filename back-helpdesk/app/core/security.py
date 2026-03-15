@@ -1,6 +1,7 @@
 from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timezone
+from datetime import timedelta
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -10,7 +11,7 @@ def hash_password(p: str) -> str:
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
-def create_access_token(payload: dict, secret: str, alg: str, expires_delta):
+def create_access_token(payload: dict, secret: str, alg: str, expires_delta: timedelta):
     now = datetime.now(timezone.utc)
     exp = now + expires_delta
     to_encode = {**payload, "iat": int(now.timestamp()), "exp": int(exp.timestamp())}

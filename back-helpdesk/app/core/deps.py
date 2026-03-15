@@ -1,23 +1,22 @@
 from fastapi import Depends, HTTPException
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 
-from app.core.config import JWT_SECRET, JWT_ALG
+from app.core.config import SECRET_KEY, ALGORITHM
 from app.core.security import decode_token
 
-bearer = HTTPBearer()
+security = HTTPBearer()
 
-def get_current_user(creds: HTTPAuthorizationCredentials = Depends(bearer)) -> dict:
-    token = creds.credentials
+def get_current_user(creds: HTTPAuthorizationCredentials = Depends(security)) -> dict:
     try:
-        payload = decode_token(token, JWT_SECRET, JWT_ALG)
-        return payload  # sub, rol, area, email, nombre...
+        return decode_token(creds.credentials, SECRET_KEY, ALGORITHM)
     except JWTError:
-        raise HTTPException(status_code=401, detail="Token inválido o expirado")
+        raise HTTPException(status_code=401, detail="Token inválido o expiradoAAAAAAAAAAAAAAA")
 
-def require_roles(*roles: str):
-    def _guard(user: dict = Depends(get_current_user)) -> dict:
-        if user.get("rol") not in roles:
-            raise HTTPException(status_code=403, detail="Sin permisos")
+def require_roles(*allowed_roles: str):
+    def _dep(user: dict = Depends(get_current_user)):
+        rol = user.get("rol")
+        if rol not in allowed_roles:
+            raise HTTPException(status_code=403, detail="No autorizadoAAAAAAAAAAAAAAA")
         return user
-    return _guard
+    return _dep
