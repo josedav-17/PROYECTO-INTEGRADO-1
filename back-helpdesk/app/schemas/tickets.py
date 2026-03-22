@@ -75,3 +75,48 @@ class PausarIn(BaseModel):
 class ConsultarTicketIn(BaseModel):
     label: str
     email: EmailStr
+
+
+class ConsultarTicketOut(BaseModel):
+    ticketUuid: str
+    ticketLabel: str
+    ticketNum: Optional[int] = None
+    solicitanteNombre: str
+    solicitanteEmail: str
+    solicitanteTel: Optional[str] = None
+    tieneWhatsapp: bool = False
+    documento: Optional[str] = None
+    empresaDepartamento: Optional[str] = None
+    tipoSolicitud: Optional[str] = None
+    categoria: str
+    subcategoria: Optional[str] = None
+    asunto: Optional[str] = None
+    descripcionProblema: str
+    respuestaCliente: Optional[str] = None
+    areaAsignada: Optional[str] = None
+    prioridadNombre: Optional[str] = None
+    estadoNombre: Optional[str] = None
+    creadoEn: Optional[str] = None
+    actualizadoEn: Optional[str] = None
+    ultimaFechaHistorial: Optional[str] = None
+    ultimaAccion: Optional[str] = None
+    ultimoMotivo: Optional[str] = None
+    ultimoActorNombre: Optional[str] = None
+    ultimoActorRol: Optional[str] = None
+    estadoAntes: Optional[str] = None
+    estadoDespues: Optional[str] = None
+    prioridadAntes: Optional[str] = None
+    prioridadDespues: Optional[str] = None
+    areaAntes: Optional[str] = None
+    areaDespues: Optional[str] = None
+
+
+class ArchivarIn(BaseModel):
+    motivo: str
+
+
+class ActualizarTicketIn(BaseModel):
+    estado: str = Field(..., min_length=3, max_length=50)
+    prioridad: str = Field(..., min_length=3, max_length=50)
+    area: str = Field(..., min_length=2, max_length=100)
+    respuesta: str = Field(..., min_length=5)

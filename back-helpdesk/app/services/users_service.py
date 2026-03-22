@@ -12,7 +12,7 @@ class UsersService:
 
     def create_user(self, payload):
         exists = self.db.execute(
-            text("SELECT 1 FROM usuarios WHERE email=:e"),
+            text("SELECT 1 FROM usuarios WHERE LOWER(TRIM(email)) = LOWER(TRIM(:e))"),
             {"e": payload.email},
         ).fetchone()
 
@@ -23,16 +23,35 @@ class UsersService:
 
         self.db.execute(
             text("""
-                INSERT INTO usuarios (id, email, nombre, password_hash, rol, area, is_active)
-                VALUES (:id, :email, :nombre, :ph, :rol, :area, true)
+                INSERT INTO usuarios (
+                    id,
+                    email,
+                    nombre,
+                    password_hash,
+                    rol,
+                    area,
+                    telefono,
+                    is_active
+                )
+                VALUES (
+                    :id,
+                    :email,
+                    :nombre,
+                    :ph,
+                    :rol,
+                    :area,
+                    :telefono,
+                    true
+                )
             """),
             {
                 "id": new_id,
-                "email": payload.email,
-                "nombre": payload.nombre,
+                "email": payload.email.strip(),
+                "nombre": payload.nombre.strip(),
                 "ph": hash_password(payload.password),
                 "rol": payload.rol,
                 "area": payload.area,
+                "telefono": payload.telefono.strip() if payload.telefono else None,
             },
         )
         self.db.commit()
@@ -43,7 +62,14 @@ class UsersService:
         rows = (
             self.db.execute(
                 text("""
-                    SELECT id, email, nombre, rol, area, is_active
+                    SELECT
+                        id,
+                        email,
+                        nombre,
+                        rol,
+                        area,
+                        telefono,
+                        is_active
                     FROM usuarios
                     ORDER BY nombre ASC
                 """)
@@ -67,11 +93,11 @@ class UsersService:
 
         if payload.email is not None:
             fields.append("email=:email")
-            params["email"] = payload.email
+            params["email"] = payload.email.strip()
 
         if payload.nombre is not None:
             fields.append("nombre=:nombre")
-            params["nombre"] = payload.nombre
+            params["nombre"] = payload.nombre.strip()
 
         if payload.rol is not None:
             fields.append("rol=:rol")
@@ -81,13 +107,17 @@ class UsersService:
             fields.append("area=:area")
             params["area"] = payload.area
 
+        if payload.telefono is not None:
+            fields.append("telefono=:telefono")
+            params["telefono"] = payload.telefono.strip() if payload.telefono else None
+
         if payload.is_active is not None:
             fields.append("is_active=:is_active")
             params["is_active"] = payload.is_active
 
-        if payload.password is not None:
+        if payload.password is not None and payload.password.strip():
             fields.append("password_hash=:ph")
-            params["ph"] = hash_password(payload.password)
+            params["ph"] = hash_password(payload.password.strip())
 
         if not fields:
             return {"message": "Nada para actualizar"}

@@ -100,28 +100,27 @@ class TicketsService:
             "mensaje": "Ticket creado correctamente",
         }
 
-    def dashboard(self):
+    def dashboard(self, rol: str | None = None, area: str | None = None):
         return self._fetch_all(
             """
             SELECT
-                uuid,
-                ticket_label,
-                solicitante_nombre,
-                solicitante_email,
-                tipo_solicitud,
+                ticket_uuid,
+                label,
                 categoria,
-                subcategoria,
-                asunto,
+                correo,
+                estado_code,
+                prioridad_nom,
                 area_asignada,
-                prioridad,
+                actualizado_en,
                 sla_horas,
-                estado,
-                creado_en,
-                fecha_limite_sla,
-                horas_restantes_sla,
-                sla_vencido
-            FROM public.fn_obtener_dashboard_tickets()
-            """
+                horas_restantes,
+                vencido
+            FROM public.fn_dashboard_tickets_full_filtrado(:rol, :area)
+            """,
+            {
+                "rol": (rol or "").strip().upper(),
+                "area": (area or "").strip(),
+            },
         )
 
     def get_bundle(self, ticket_id: str):
@@ -177,4 +176,154 @@ class TicketsService:
         self._exec_sp(
             "CALL public.sp_cancelar_ticket(:id, :motivo, :por)",
             {"id": ticket_id, "motivo": motivo, "por": por},
+        )
+
+
+    def consultar_publico(self, label: str, email: str):
+        row = self._fetch_one(
+            """
+            SELECT *
+            FROM public.fn_consultar_ticket_publico(:label, :email)
+            """,
+            {
+                "label": label,
+                "email": email,
+            },
+        )
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Ticket no encontrado")
+
+        return {
+            "ticketUuid": str(row["ticket_uuid"]) if row.get("ticket_uuid") else None,
+            "ticketLabel": row["ticket_label"],
+            "ticketNum": row.get("ticket_num"),
+            "solicitanteNombre": row["solicitante_nombre"],
+            "solicitanteEmail": row["solicitante_email"],
+            "solicitanteTel": row.get("solicitante_tel"),
+            "tieneWhatsapp": bool(row.get("tiene_whatsapp", False)),
+            "documento": row.get("documento"),
+            "empresaDepartamento": row.get("empresa_departamento"),
+            "tipoSolicitud": row.get("tipo_solicitud"),
+            "categoria": row["categoria"],
+            "subcategoria": row.get("subcategoria"),
+            "asunto": row.get("asunto"),
+            "descripcionProblema": row["descripcion_problema"],
+            "respuestaCliente": row.get("respuesta_cliente"),
+            "areaAsignada": row.get("area_asignada"),
+            "prioridadNombre": row.get("prioridad_nombre"),
+            "estadoNombre": row.get("estado_nombre"),
+            "creadoEn": row["creado_en"].isoformat() if row.get("creado_en") else None,
+            "actualizadoEn": row["actualizado_en"].isoformat() if row.get("actualizado_en") else None,
+            "ultimaFechaHistorial": row["ultima_fecha_historial"].isoformat() if row.get("ultima_fecha_historial") else None,
+            "ultimaAccion": row.get("ultima_accion"),
+            "ultimoMotivo": row.get("ultimo_motivo"),
+            "ultimoActorNombre": row.get("ultimo_actor_nombre"),
+            "ultimoActorRol": row.get("ultimo_actor_rol"),
+            "estadoAntes": row.get("estado_antes"),
+            "estadoDespues": row.get("estado_despues"),
+            "prioridadAntes": row.get("prioridad_antes"),
+            "prioridadDespues": row.get("prioridad_despues"),
+            "areaAntes": row.get("area_antes"),
+            "areaDespues": row.get("area_despues"),
+        }
+    
+
+    def archivar(
+            self,
+            ticket_id: str,
+            motivo: str,
+            actor_user_id: str | None = None,
+            actor_nombre: str | None = None,
+            actor_email: str | None = None,
+            actor_rol: str | None = None,
+        ):
+            self._exec_sp(
+                """
+                CALL public.sp_archivar_ticket(
+                    :id,
+                    :motivo,
+                    :actor_user_id,
+                    :actor_nombre,
+                    :actor_email,
+                    :actor_rol
+                )
+                """,
+                {
+                    "id": ticket_id,
+                    "motivo": motivo,
+                    "actor_user_id": actor_user_id,
+                    "actor_nombre": actor_nombre,
+                    "actor_email": actor_email,
+                    "actor_rol": actor_rol,
+                },
+            )
+
+    def actualizar_ticket(
+        self,
+        ticket_id: str,
+        estado: str,
+        prioridad: str,
+        area: str,
+        respuesta: str,
+        actor_user_id: str | None = None,
+        actor_nombre: str | None = None,
+        actor_email: str | None = None,
+        actor_rol: str | None = None,
+    ):
+        self._exec_sp(
+            """
+            CALL public.sp_actualizar_ticket(
+                :id,
+                :estado,
+                :prioridad,
+                :area,
+                :respuesta,
+                :actor_user_id,
+                :actor_nombre,
+                :actor_email,
+                :actor_rol
+            )
+            """,
+            {
+                "id": ticket_id,
+                "estado": estado,
+                "prioridad": prioridad,
+                "area": area,
+                "respuesta": respuesta,
+                "actor_user_id": actor_user_id,
+                "actor_nombre": actor_nombre,
+                "actor_email": actor_email,
+                "actor_rol": actor_rol,
+            },
+        )
+
+
+    def dashboard_metricas(self, rol: str | None = None, area: str | None = None):
+        return self._fetch_all(
+            """
+            SELECT
+                uuid,
+                ticket_label,
+                solicitante_nombre,
+                solicitante_email,
+                tipo_solicitud,
+                categoria,
+                subcategoria,
+                asunto,
+                area_asignada,
+                prioridad,
+                sla_horas,
+                estado,
+                creado_en,
+                actualizado_en,
+                fecha_limite_sla,
+                horas_restantes_sla,
+                sla_vencido
+            FROM public.fn_dashboard_metricas_filtrado(:rol, :area)
+            """,
+            {
+                "rol": (rol or "").strip().upper(),
+                "area": (area or "").strip(),
+            },
         )

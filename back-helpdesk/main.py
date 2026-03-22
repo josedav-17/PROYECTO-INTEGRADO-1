@@ -7,7 +7,7 @@ from app.routers.tickets import router as tickets_router
 app = FastAPI(title="Mesa de Ayuda API - SP Driven")
 
 origins = [
-    "https://front-helpdesk.vercel.app",
+    "*",
 ]
 
 app.add_middleware(
