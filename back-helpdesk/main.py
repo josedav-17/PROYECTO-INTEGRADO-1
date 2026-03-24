@@ -9,6 +9,7 @@ app = FastAPI(title="Mesa de Ayuda API - SP Driven")
 origins = [
     "https://front-helpdesk.vercel.app",
     "http://localhost:4200",
+    "https://front-helpdesk-two.vercel.app"
 ]
 
 app.add_middleware(
